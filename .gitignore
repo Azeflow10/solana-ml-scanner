@@ -213,3 +213,4 @@ data/*.db-journal
 logs/*.log
 models/*.pkl
 models/*.joblib
+requirements_temp.txt
