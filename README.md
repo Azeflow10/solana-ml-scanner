@@ -85,7 +85,20 @@ nano config.yaml
 - **Birdeye**: Additional market data (optional)
 - **RugCheck**: Enhanced rug detection (optional)
 
-### 4. Run the Bot
+### 4. Test Telegram Integration
+
+```bash
+# Test your Telegram bot setup
+python scripts/test_telegram.py
+
+# This will:
+# - Verify bot token and chat ID
+# - Send test messages
+# - Test alert formatting with buttons
+# - Confirm everything is working
+```
+
+### 5. Run the Bot
 
 ```bash
 # Start the scanner
