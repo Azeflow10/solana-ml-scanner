@@ -4,6 +4,7 @@ Core Orchestrator - Coordinates all bot components
 
 import asyncio
 import time
+import traceback
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -73,6 +74,10 @@ class Orchestrator:
         self.max_alerts_per_day = self.config.get_nested('alerts', 'max_alerts_per_day', 15)
         self.min_alert_score = self.config.get_nested('alerts', 'min_score', 70)
         
+        # Scan tracking
+        self.total_tokens_analyzed = 0
+        self.total_alerts_sent = 0
+        
         logger.info("Orchestrator initialization complete!")
     
     def _get_scanner_config(self) -> Dict[str, Any]:
@@ -102,34 +107,137 @@ class Orchestrator:
         }
     
     async def start(self):
-        """Start the bot"""
+        """Start the bot and run continuous scanning"""
         logger = get_logger(__name__)
         logger.info("🚀 Bot is starting...")
         
-        # Set up callbacks for scanners
-        self.pumpfun_scanner.set_callback(self.process_token)
-        self.dexscreener_scanner.set_callback(self.process_token)
-        
-        # Start all scanners
-        scanner_tasks = []
-        
-        if self.config.get_nested('scanners', 'pumpfun', 'enabled', True):
-            scanner_tasks.append(asyncio.create_task(self.pumpfun_scanner.start()))
-            logger.info("✅ Pump.fun scanner started")
-        
-        if self.config.get_nested('scanners', 'dexscreener', 'enabled', True):
-            scanner_tasks.append(asyncio.create_task(self.dexscreener_scanner.start()))
-            logger.info("✅ DexScreener scanner started")
+        # Start scanners
+        try:
+            logger.info("🔌 Connecting to PumpFun scanner...")
+            await self.pumpfun_scanner.connect()
+            logger.info("✅ PumpFun scanner connected")
+        except Exception as e:
+            logger.error(f"Failed to connect PumpFun scanner: {e}")
+            logger.info("⚠️  Continuing with DexScreener only")
         
         logger.info("🤖 Bot is running! Waiting for opportunities...")
+        logger.info(f"⏱️  Scan interval: {self.config.get_nested('scanner', 'poll_interval', 10)} seconds")
+        logger.info(f"🎯 Alert threshold: {self.min_alert_score}/100")
+        logger.info("📱 Alerts will be sent to Telegram")
+        logger.info("Press Ctrl+C to stop\n")
         
-        # Keep running
+        scan_count = 0
+        
+        # Main infinite loop
+        while True:
+            try:
+                scan_count += 1
+                current_time = datetime.now().strftime("%H:%M:%S")
+                
+                logger.info(f"🔍 [Scan #{scan_count}] {current_time} - Scanning for new tokens...")
+                
+                # Run scanning cycle
+                await self._scan_cycle()
+                
+                # Status logging every 10 scans
+                if scan_count % 10 == 0:
+                    logger.info(f"📊 Status: {scan_count} scans completed, {self.total_tokens_analyzed} tokens analyzed, {self.total_alerts_sent} alerts sent")
+                
+                # Wait before next scan
+                poll_interval = self.config.get_nested('scanner', 'poll_interval', 10)
+                logger.info(f"⏸️  Waiting {poll_interval}s before next scan...\n")
+                await asyncio.sleep(poll_interval)
+                
+            except KeyboardInterrupt:
+                logger.info("\n⏹️  Bot stopped by user (Ctrl+C)")
+                logger.info("👋 Shutting down gracefully...")
+                break
+                
+            except Exception as e:
+                logger.error(f"❌ Error in main loop: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.info("⏳ Waiting 30 seconds before retry...\n")
+                await asyncio.sleep(30)
+    
+    async def _scan_cycle(self):
+        """Run one complete scan cycle"""
+        logger = get_logger(__name__)
+        
         try:
-            # Wait for all scanner tasks
-            await asyncio.gather(*scanner_tasks)
-        except asyncio.CancelledError:
-            logger.info("Bot shutdown requested")
-            await self.shutdown()
+            # Scan from both sources
+            pumpfun_tokens = []
+            dexscreener_tokens = []
+            
+            # Scan PumpFun (if connected)
+            try:
+                pumpfun_tokens = await self.pumpfun_scanner.scan()
+                if pumpfun_tokens:
+                    logger.info(f"   └─ PumpFun: Found {len(pumpfun_tokens)} new tokens")
+            except Exception as e:
+                logger.warning(f"   └─ PumpFun scan failed: {e}")
+            
+            # Scan DexScreener
+            try:
+                dexscreener_tokens = await self.dexscreener_scanner.scan_new_pairs()
+                if dexscreener_tokens:
+                    logger.info(f"   └─ DexScreener: Found {len(dexscreener_tokens)} new pairs")
+            except Exception as e:
+                logger.warning(f"   └─ DexScreener scan failed: {e}")
+            
+            # Combine results
+            all_tokens = pumpfun_tokens + dexscreener_tokens
+            
+            if not all_tokens:
+                logger.info("   └─ No new tokens found")
+                return
+            
+            logger.info(f"   └─ Total: {len(all_tokens)} tokens to analyze")
+            
+            # Process each token
+            for i, token_data in enumerate(all_tokens, 1):
+                try:
+                    # Handle both TokenData objects and dicts
+                    if hasattr(token_data, 'symbol'):
+                        symbol = token_data.symbol
+                        address = token_data.address
+                    else:
+                        symbol = token_data.get('symbol', 'Unknown')
+                        address = token_data.get('address', 'Unknown')
+                    
+                    logger.info(f"\n📊 [{i}/{len(all_tokens)}] Analyzing: {symbol} ({address[:8]}...)")
+                    
+                    # Convert dict to TokenData if needed
+                    if not hasattr(token_data, 'to_dict'):
+                        token_data = self._dict_to_token_data(token_data)
+                    
+                    await self.process_token(token_data)
+                    self.total_tokens_analyzed += 1
+                except Exception as e:
+                    logger.error(f"   └─ Failed to process token: {e}")
+                    continue
+            
+        except Exception as e:
+            logger.error(f"Scan cycle failed: {e}")
+            raise
+    
+    def _dict_to_token_data(self, data: Dict[str, Any]) -> TokenData:
+        """Convert dict to TokenData object"""
+        return TokenData(
+            address=data.get('address', ''),
+            symbol=data.get('symbol', 'UNKNOWN'),
+            name=data.get('name', ''),
+            liquidity_usd=data.get('liquidity_usd', 0),
+            market_cap=data.get('market_cap', 0),
+            price_usd=data.get('price_usd', 0),
+            volume_24h=data.get('volume_24h', 0),
+            holders=data.get('holders', 0),
+            age_seconds=data.get('age_seconds', 0),
+            price_change_5min=data.get('price_change_5min', 0),
+            price_change_1h=data.get('price_change_1h', 0),
+            volume_change_2min=data.get('volume_change_2min', 0),
+            source=data.get('source', 'unknown'),
+            raw_data=data
+        )
     
     async def process_token(self, token_data: TokenData):
         """
@@ -364,6 +472,7 @@ class Orchestrator:
             await self.notification_manager.send_alert(analysis.to_dict())
             
             self.alerts_sent_today += 1
+            self.total_alerts_sent += 1
             
             logger.info(
                 f"🚨 ALERT SENT: {analysis.token.symbol} | "
@@ -393,20 +502,20 @@ class Orchestrator:
             logger = get_logger(__name__)
             logger.error(f"Failed to save analysis: {e}")
     
-    async def shutdown(self):
-        """Graceful shutdown"""
+    async def stop(self):
+        """Stop the bot gracefully"""
         logger = get_logger(__name__)
-        logger.info("Shutting down gracefully...")
+        logger.info("🛑 Stopping bot...")
         
-        # Stop scanners
+        # Close scanner connections
         try:
             await self.pumpfun_scanner.stop()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error disconnecting PumpFun: {e}")
         
         try:
             await self.dexscreener_scanner.stop()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error disconnecting DexScreener: {e}")
         
-        logger.info("✅ Shutdown complete")
+        logger.info("✅ Bot stopped")

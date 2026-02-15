@@ -84,60 +84,41 @@ class PumpFunScanner:
             self.running = False
     
     async def scan(self) -> List[TokenData]:
-        """Listen for new token events in real-time"""
-        
-        logger.info("Listening for new Pump.fun tokens...")
-        detected_tokens = []
-        
+        """Scan for new tokens"""
         try:
-            while self.running:
-                if not self.ws:
-                    logger.warning("WebSocket not connected, reconnecting...")
-                    await asyncio.sleep(5)
-                    await self.connect()
-                    continue
+            # If not connected or not running, return empty list
+            if not self.ws or not self.running:
+                return []
+            
+            # Listen for tokens (with short timeout for polling)
+            detected_tokens = []
+            
+            try:
+                # Try to receive message with short timeout (non-blocking scan)
+                message = await asyncio.wait_for(
+                    self.ws.recv(),
+                    timeout=1.0
+                )
                 
-                try:
-                    # Receive message with timeout
-                    message = await asyncio.wait_for(
-                        self.ws.recv(),
-                        timeout=30.0
-                    )
+                # Parse the message
+                data = json.loads(message)
+                
+                # Check if it's a new token event
+                if self._is_new_token_event(data):
+                    token_data = await self.parse_token_data(data)
                     
-                    # Parse the message
-                    data = json.loads(message)
-                    
-                    # Check if it's a new token event
-                    if self._is_new_token_event(data):
-                        token_data = await self.parse_token_data(data)
-                        
-                        if token_data:
-                            # Apply pre-filters
-                            if self.apply_prefilters(token_data):
-                                logger.info(f"✨ New token detected: {token_data.symbol} ({token_data.address})")
-                                detected_tokens.append(token_data)
-                                
-                                # Call callback if set
-                                if self.callback:
-                                    asyncio.create_task(self.callback(token_data))
-                            else:
-                                logger.debug(f"Token filtered out: {token_data.symbol}")
-                    
-                except asyncio.TimeoutError:
-                    # No message received, continue listening
-                    continue
-                    
-                except Exception as e:
-                    logger.error(f"Error processing message: {e}")
-                    await asyncio.sleep(1)
-                    
+                    if token_data and self.apply_prefilters(token_data):
+                        detected_tokens.append(token_data)
+                
+            except asyncio.TimeoutError:
+                # No message received, return empty list
+                pass
+            
+            return detected_tokens
+            
         except Exception as e:
-            logger.error(f"Scan loop error: {e}")
-        finally:
-            if self.ws:
-                await self.ws.close()
-        
-        return detected_tokens
+            logger.error(f"PumpFun scan error: {e}")
+            return []
     
     def _is_new_token_event(self, data: Dict[str, Any]) -> bool:
         """Check if the WebSocket message is a new token event"""
@@ -221,3 +202,11 @@ class PumpFunScanner:
         self.running = False
         if self.ws:
             await self.ws.close()
+    
+    async def disconnect(self):
+        """Disconnect from WebSocket"""
+        logger.info("Disconnecting from Pump.fun WebSocket...")
+        self.running = False
+        if self.ws:
+            await self.ws.close()
+            self.ws = None
