@@ -41,3 +41,21 @@ class Config:
             else:
                 return default
         return value
+    
+    def get_nested(self, *keys, default: Any = None) -> Any:
+        """
+        Get nested configuration value with variable number of keys
+        
+        Example:
+            config.get_nested('alerts', 'min_score', default=70)
+            config.get_nested('machine_learning', 'enabled', default=True)
+        """
+        value = self.config
+        for key in keys:
+            if isinstance(value, dict):
+                value = value.get(key)
+                if value is None:
+                    return default
+            else:
+                return default
+        return value if value is not None else default
