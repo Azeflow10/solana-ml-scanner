@@ -5,19 +5,18 @@ Core Orchestrator - Coordinates all bot components
 import asyncio
 from typing import Dict, Any
 
-from src.utils.logger import get_logger
+from src.utils.logger import get_logger, setup_logger
 from src.core.config import Config
 from src.database.db_manager import DatabaseManager
 from src.ml.inference.predictor import MLPredictor
 from src.notifications.notification_manager import NotificationManager
-
-logger = get_logger(__name__)
 
 class Orchestrator:
     """Main orchestrator for the scanner bot"""
     
     def __init__(self):
         """Initialize orchestrator"""
+        logger = get_logger(__name__)
         logger.info("Initializing Orchestrator...")
         
         # Load configuration
@@ -40,6 +39,7 @@ class Orchestrator:
     
     async def start(self):
         """Start the bot"""
+        logger = get_logger(__name__)
         logger.info("🚀 Bot is starting...")
         
         # TODO: Start scanners
@@ -57,6 +57,7 @@ class Orchestrator:
     
     async def shutdown(self):
         """Graceful shutdown"""
+        logger = get_logger(__name__)
         logger.info("Shutting down gracefully...")
         # TODO: Close connections, save state
         logger.info("✅ Shutdown complete")
