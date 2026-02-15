@@ -86,8 +86,8 @@ def setup_logger(
             log_path.parent.mkdir(parents=True, exist_ok=True)
             
             file_handler = logging.FileHandler(log_file, encoding='utf-8')
-            file_handler.setFormatter(formatter)
             file_handler.setLevel(level)
+            file_handler.setFormatter(formatter)
             root_logger.addHandler(file_handler)
         except Exception as e:
             root_logger.warning(f"Could not create log file handler: {e}")
