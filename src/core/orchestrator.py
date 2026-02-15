@@ -22,7 +22,7 @@ from src.analyzers.holder_analyzer import HolderAnalyzer
 from src.scoring.scoring_engine import ScoringEngine
 from src.pattern_detection.pattern_detector import PatternDetector
 
-from src.models.token_data import TokenData, AnalysisResult
+from src.models.token_data import TokenData, AnalysisResult, ScoringResult
 
 
 class Orchestrator:
@@ -121,8 +121,15 @@ class Orchestrator:
             logger.info("⚠️  Continuing with DexScreener only")
         
         logger.info("🤖 Bot is running! Waiting for opportunities...")
-        logger.info(f"⏱️  Scan interval: {self.config.get_nested('scanner', 'poll_interval', 10)} seconds")
-        logger.info(f"🎯 Alert threshold: {self.min_alert_score}/100")
+        
+        poll_interval = self.config.get_nested('scanner', 'poll_interval', 10)
+        if poll_interval is None:
+            poll_interval = 10
+        
+        min_score = self.min_alert_score if self.min_alert_score is not None else 70
+        
+        logger.info(f"⏱️  Scan interval: {poll_interval} seconds")
+        logger.info(f"🎯 Alert threshold: {min_score}/100")
         logger.info("📱 Alerts will be sent to Telegram")
         logger.info("Press Ctrl+C to stop\n")
         
@@ -145,6 +152,8 @@ class Orchestrator:
                 
                 # Wait before next scan
                 poll_interval = self.config.get_nested('scanner', 'poll_interval', 10)
+                if poll_interval is None:
+                    poll_interval = 10  # Default to 10 seconds
                 logger.info(f"⏸️  Waiting {poll_interval}s before next scan...\n")
                 await asyncio.sleep(poll_interval)
                 
