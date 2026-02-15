@@ -1,6 +1,10 @@
 """
 Message Formatter for notifications
 Formats alerts into rich, readable messages for different channels
+
+Note: French language strings are used intentionally as per project requirements.
+The target audience is French-speaking traders. To make this configurable,
+consider implementing a localization system in future versions.
 """
 
 from typing import Dict, Any, Optional
@@ -51,7 +55,13 @@ class MessageFormatter:
     
     @staticmethod
     def format_percentage(value: float, show_sign: bool = True) -> str:
-        """Format percentage with sign"""
+        """
+        Format percentage with sign
+        
+        Args:
+            value: Percentage value
+            show_sign: If True, adds '+' for positive values (negative values always show '-')
+        """
         sign = '+' if value > 0 and show_sign else ''
         return f"{sign}{value:.1f}%"
     
