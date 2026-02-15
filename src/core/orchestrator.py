@@ -338,10 +338,9 @@ class Orchestrator:
         # Check category filters
         category_filters = self.config.get_nested('alerts', 'categories', {})
         if category_filters:
-            category_enabled = category_filters.get(
-                scoring_result.category.lower().replace('_', '_'),
-                True
-            )
+            # Normalize category name to match config format
+            category_key = scoring_result.category.lower()
+            category_enabled = category_filters.get(category_key, True)
             if not category_enabled:
                 return False
         

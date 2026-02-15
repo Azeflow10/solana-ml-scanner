@@ -275,7 +275,8 @@ class DexScreenerScanner:
             created_at = pair.get('pairCreatedAt', 0)
             age_seconds = 0
             if created_at:
-                age_seconds = int((datetime.utcnow().timestamp() - created_at / 1000))
+                # created_at is in milliseconds, convert to seconds
+                age_seconds = int(datetime.utcnow().timestamp() - created_at / 1000)
             
             # Volume change (approximate from 24h data)
             volume_change_2min = 0.0  # Not available in DexScreener

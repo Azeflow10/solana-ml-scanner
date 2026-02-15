@@ -243,8 +243,9 @@ class PatternDetector:
         
         # MOMENTUM is MEDIUM risk
         if pattern == "MOMENTUM":
+            # Lower risk if high security score
             if rugcheck and rugcheck.overall_score >= 8.5:
-                return "MEDIUM"
+                return "LOW"
             return "MEDIUM"
         
         # WHALE_ACCUMULATION is MEDIUM-HIGH risk
