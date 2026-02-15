@@ -4,6 +4,7 @@ Handles bot initialization, message sending, and button interactions
 """
 
 import asyncio
+import re
 from typing import Dict, Any, Optional
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes
@@ -162,19 +163,34 @@ class TelegramBot:
             # Format the alert message
             message = self.formatter.format_telegram_alert(alert_data, compact=compact)
             
-            # Create inline buttons
-            buttons = self._create_alert_buttons(alert_data)
+            # Try with buttons first
+            try:
+                buttons = self._create_alert_buttons(alert_data.get('token_address', ''))
+                success = await self.send_message(
+                    text=message,
+                    chat_id=chat_id,
+                    reply_markup=buttons,
+                    parse_mode="HTML"
+                )
+                if success:
+                    token_symbol = alert_data.get('token_symbol', 'UNKNOWN')
+                    logger.info(f"Alert sent successfully for {token_symbol}")
+                    return True
+            except Exception as button_error:
+                logger.warning(f"Failed to send with buttons: {button_error}")
+                # Fallback: send without buttons
+                logger.info("Sending alert without buttons as fallback")
             
-            # Send the message
+            # Send without buttons as fallback
             success = await self.send_message(
                 text=message,
                 chat_id=chat_id,
-                reply_markup=buttons
+                parse_mode="HTML"
             )
             
             if success:
                 token_symbol = alert_data.get('token_symbol', 'UNKNOWN')
-                logger.info(f"Alert sent successfully for {token_symbol}")
+                logger.info(f"Alert sent successfully (without buttons) for {token_symbol}")
             
             return success
             
@@ -182,34 +198,49 @@ class TelegramBot:
             logger.error(f"Error sending alert: {e}")
             return False
     
-    def _create_alert_buttons(self, alert_data: Dict[str, Any]) -> InlineKeyboardMarkup:
+    def _create_alert_buttons(self, token_address: str) -> InlineKeyboardMarkup:
         """
-        Create inline keyboard buttons for an alert
+        Create inline keyboard buttons with validated URLs
         
         Args:
-            alert_data: Alert data dictionary
+            token_address: Token address string
             
         Returns:
             InlineKeyboardMarkup with buttons
         """
-        token_address = alert_data.get('token_address', '')
+        # Validate and clean token address
+        clean_address = self._validate_token_address(token_address)
+        
+        # Create URLs with proper encoding
+        jupiter_url = f"https://jup.ag/swap/SOL-{clean_address}"
+        dexscreener_url = f"https://dexscreener.com/solana/{clean_address}"
+        
+        # Validate URLs before creating buttons
+        # If invalid, use homepage as safe fallback and log warning
+        if not self._is_valid_url(jupiter_url):
+            logger.warning(f"Invalid Jupiter URL for token {clean_address}, using homepage fallback")
+            jupiter_url = "https://jup.ag"
+        
+        if not self._is_valid_url(dexscreener_url):
+            logger.warning(f"Invalid DexScreener URL for token {clean_address}, using homepage fallback")
+            dexscreener_url = "https://dexscreener.com"
         
         # Create button rows
         buttons = [
             [
                 InlineKeyboardButton(
                     "🚀 TRADE",
-                    url=f"https://jup.ag/swap/SOL-{token_address}"
+                    url=jupiter_url
                 ),
                 InlineKeyboardButton(
                     "📊 CHART",
-                    url=f"https://dexscreener.com/solana/{token_address}"
+                    url=dexscreener_url
                 )
             ],
             [
                 InlineKeyboardButton(
                     "✅ TRACK",
-                    callback_data=f"track_{token_address[:8]}"  # Shortened for callback data limit
+                    callback_data=f"track_{clean_address[:8]}"  # Shortened for callback data limit
                 )
             ]
         ]
@@ -252,6 +283,66 @@ class TelegramBot:
                 
         except Exception as e:
             logger.error(f"Error handling button callback: {e}")
+    
+    def _validate_token_address(self, address: str) -> str:
+        """
+        Validate and clean Solana token address
+        
+        Args:
+            address: Token address to validate
+            
+        Returns:
+            Cleaned token address
+        """
+        # Remove any whitespace
+        address = address.strip()
+        
+        # Solana addresses are base58 encoded, 32-44 characters
+        # Valid characters: 1-9, A-H, J-N, P-Z, a-k, m-z (no 0, O, I, l)
+        if not address or len(address) < 32 or len(address) > 44:
+            logger.warning(f"Invalid token address length: {address}")
+            return address
+        
+        # Remove any invalid characters for URLs
+        # Base58 characters are URL-safe, but double-check
+        if not re.match(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$', address):
+            logger.warning(f"Token address contains invalid characters: {address}")
+            # Clean it (remove invalid chars)
+            address = re.sub(r'[^1-9A-HJ-NP-Za-km-z]', '', address)
+        
+        return address
+    
+    def _is_valid_url(self, url: str) -> bool:
+        """
+        Validate URL format and ensure it's safe for Telegram buttons
+        
+        Args:
+            url: URL to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        # First check basic URL structure
+        url_pattern = re.compile(
+            r'^https?://'  # http:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain
+            r'localhost|'  # localhost
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # or IP
+            r'(?::\d+)?'  # optional port
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+        
+        if not url_pattern.match(url):
+            return False
+        
+        # Additional check: Telegram buttons don't accept URLs with certain special chars
+        # that could break HTML/XML parsing: <, >, &, ", '
+        invalid_chars = ['<', '>', '"', "'"]
+        for char in invalid_chars:
+            if char in url:
+                logger.debug(f"URL contains invalid character '{char}': {url}")
+                return False
+        
+        return True
     
     async def _apply_rate_limit(self):
         """Apply rate limiting between messages"""

@@ -132,7 +132,7 @@ class MessageFormatter:
         
         # Token info
         lines.append(f"🪙 Token: <b>${token_symbol_safe}</b>")
-        lines.append(f"📍 CA: <code>{cls.truncate_address(token_address_safe, 5, 3)}</code>")
+        lines.append(f"📍 CA: <code>{token_address_safe}</code>")
         
         # Age
         age_seconds = metrics.get('age_seconds', 0)
