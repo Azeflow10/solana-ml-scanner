@@ -314,7 +314,7 @@ class TelegramBot:
     
     def _is_valid_url(self, url: str) -> bool:
         """
-        Validate URL format
+        Validate URL format and ensure it's safe for Telegram buttons
         
         Args:
             url: URL to validate
@@ -322,6 +322,7 @@ class TelegramBot:
         Returns:
             True if valid, False otherwise
         """
+        # First check basic URL structure
         url_pattern = re.compile(
             r'^https?://'  # http:// or https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain
@@ -329,7 +330,19 @@ class TelegramBot:
             r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # or IP
             r'(?::\d+)?'  # optional port
             r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        return url_pattern.match(url) is not None
+        
+        if not url_pattern.match(url):
+            return False
+        
+        # Additional check: Telegram buttons don't accept URLs with certain special chars
+        # that could break HTML/XML parsing: <, >, &, ", '
+        invalid_chars = ['<', '>', '"', "'"]
+        for char in invalid_chars:
+            if char in url:
+                logger.debug(f"URL contains invalid character '{char}': {url}")
+                return False
+        
+        return True
     
     async def _apply_rate_limit(self):
         """Apply rate limiting between messages"""
