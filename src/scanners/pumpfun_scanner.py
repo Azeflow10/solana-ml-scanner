@@ -204,9 +204,5 @@ class PumpFunScanner:
             await self.ws.close()
     
     async def disconnect(self):
-        """Disconnect from WebSocket"""
-        logger.info("Disconnecting from Pump.fun WebSocket...")
-        self.running = False
-        if self.ws:
-            await self.ws.close()
-            self.ws = None
+        """Disconnect from WebSocket (alias for stop)"""
+        await self.stop()

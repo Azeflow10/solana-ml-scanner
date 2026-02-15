@@ -122,11 +122,9 @@ class Orchestrator:
         
         logger.info("🤖 Bot is running! Waiting for opportunities...")
         
-        poll_interval = self.config.get_nested('scanner', 'poll_interval', 10)
-        if poll_interval is None:
-            poll_interval = 10
-        
-        min_score = self.min_alert_score if self.min_alert_score is not None else 70
+        # Get configuration values once
+        poll_interval = self.config.get_nested('scanner', 'poll_interval', 10) or 10
+        min_score = self.min_alert_score or 70
         
         logger.info(f"⏱️  Scan interval: {poll_interval} seconds")
         logger.info(f"🎯 Alert threshold: {min_score}/100")
@@ -151,9 +149,6 @@ class Orchestrator:
                     logger.info(f"📊 Status: {scan_count} scans completed, {self.total_tokens_analyzed} tokens analyzed, {self.total_alerts_sent} alerts sent")
                 
                 # Wait before next scan
-                poll_interval = self.config.get_nested('scanner', 'poll_interval', 10)
-                if poll_interval is None:
-                    poll_interval = 10  # Default to 10 seconds
                 logger.info(f"⏸️  Waiting {poll_interval}s before next scan...\n")
                 await asyncio.sleep(poll_interval)
                 
