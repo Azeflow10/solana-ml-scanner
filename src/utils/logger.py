@@ -2,6 +2,8 @@
 Logging utilities with Windows emoji support
 """
 
+import codecs
+import io
 import logging
 import sys
 from pathlib import Path
@@ -49,12 +51,10 @@ def setup_logger(
         if sys.platform == 'win32':
             try:
                 # Reconfigure stdout with UTF-8 and error handling
-                import io
                 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
             except (AttributeError, io.UnsupportedOperation):
                 # Fallback for older Python or unsupported operations
                 # Use a custom stream handler that handles encoding errors
-                import codecs
                 sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
         
         console_handler.setFormatter(formatter)

@@ -96,7 +96,7 @@ def test_logger_windows_encoding():
                 "🤖",  # Robot
                 "🔍",  # Magnifying glass
                 "📊",  # Chart
-                "⏸️",   # Pause
+                "⏸️",  # Pause
                 "🚨",  # Siren
                 "✨",  # Sparkles
                 "⏳",  # Hourglass
