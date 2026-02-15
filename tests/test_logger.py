@@ -114,6 +114,27 @@ def test_logger_windows_encoding():
         assert success, "Logger should handle all emojis without UnicodeEncodeError"
 
 
+def test_multiple_logger_setup():
+    """Test that calling setup_logger multiple times doesn't cause issues"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        log_file1 = Path(tmpdir) / "test1.log"
+        log_file2 = Path(tmpdir) / "test2.log"
+        
+        # Setup logger multiple times
+        logger1 = setup_logger("test_multi_1", log_file=str(log_file1))
+        logger2 = setup_logger("test_multi_2", log_file=str(log_file2))
+        
+        # Both should work without issues
+        try:
+            logger1.info("✅ First logger with emoji")
+            logger2.info("🚀 Second logger with emoji")
+            success = True
+        except Exception:
+            success = False
+        
+        assert success, "Multiple logger setups should work correctly"
+
+
 if __name__ == "__main__":
     print("Running logger tests...")
     
@@ -132,5 +153,9 @@ if __name__ == "__main__":
     print("\n4. Testing Windows encoding...")
     test_logger_windows_encoding()
     print("✅ Windows encoding test passed")
+    
+    print("\n5. Testing multiple logger setups...")
+    test_multiple_logger_setup()
+    print("✅ Multiple logger setup test passed")
     
     print("\n✅ All tests passed!")

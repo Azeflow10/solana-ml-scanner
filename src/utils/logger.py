@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 _logger_configured = False
+_stdout_reconfigured = False
 
 def setup_logger(
     name: str = "solana_scanner",
@@ -19,15 +20,22 @@ def setup_logger(
     """
     Setup logger with Windows-compatible encoding
     
+    This function configures the logging system to handle UTF-8 emojis on Windows.
+    
+    **Important:** On Windows, this function modifies sys.stdout globally to use UTF-8
+    encoding with error replacement. This affects all print statements and stdout writes
+    application-wide, not just logging. This is necessary to prevent UnicodeEncodeError
+    when logging emojis on Windows (which uses CP1252 encoding by default).
+    
     Args:
         name: Logger name
-        level: Logging level
-        log_file: Optional log file path
+        level: Logging level (default: logging.INFO)
+        log_file: Optional log file path (default: "logs/scanner.log")
     
     Returns:
-        Configured logger
+        Configured logger instance
     """
-    global _logger_configured
+    global _logger_configured, _stdout_reconfigured
     
     # Get root logger and configure it
     root_logger = logging.getLogger()
@@ -47,15 +55,17 @@ def setup_logger(
         # Force UTF-8 encoding for console output on Windows
         console_handler = logging.StreamHandler(sys.stdout)
         
-        # Try to reconfigure stdout to use UTF-8
-        if sys.platform == 'win32':
+        # Try to reconfigure stdout to use UTF-8 (only once)
+        if sys.platform == 'win32' and not _stdout_reconfigured:
             try:
                 # Reconfigure stdout with UTF-8 and error handling
                 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+                _stdout_reconfigured = True
             except (AttributeError, io.UnsupportedOperation):
                 # Fallback for older Python or unsupported operations
                 # Use a custom stream handler that handles encoding errors
                 sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, errors='replace')
+                _stdout_reconfigured = True
         
         console_handler.setFormatter(formatter)
         console_handler.setLevel(level)
