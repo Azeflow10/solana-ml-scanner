@@ -54,7 +54,7 @@ class TelegramBot:
     async def send_message(
         self, 
         text: str, 
-        parse_mode: str = "Markdown",
+        parse_mode: str = "HTML",
         chat_id: Optional[str] = None,
         reply_markup: Optional[InlineKeyboardMarkup] = None,
         retry_count: int = 3
@@ -64,7 +64,7 @@ class TelegramBot:
         
         Args:
             text: Message text
-            parse_mode: Parse mode (Markdown or HTML)
+            parse_mode: Parse mode (HTML, Markdown, or None for plain text)
             chat_id: Optional chat ID override
             reply_markup: Optional inline keyboard
             retry_count: Number of retry attempts
@@ -102,9 +102,38 @@ class TelegramBot:
                     await asyncio.sleep(2 * (attempt + 1))
                     
             except TelegramError as e:
-                logger.error(f"Telegram error: {e}")
-                return False
+                error_msg = str(e).lower()
                 
+                # If it's a parse error and we're using HTML/Markdown, try plain text as fallback
+                if "parse" in error_msg or "can't parse entities" in error_msg:
+                    if parse_mode is not None:
+                        logger.warning(f"Parse error with {parse_mode} mode: {e}")
+                        logger.info(f"Attempting to send as plain text (attempt {attempt + 1}/{retry_count})")
+                        logger.debug(f"Message that failed: {text[:200]}...")
+                        
+                        # Try sending without parse mode (plain text)
+                        try:
+                            await self.bot.send_message(
+                                chat_id=target_chat_id,
+                                text=text,
+                                parse_mode=None,
+                                reply_markup=reply_markup,
+                                disable_web_page_preview=True
+                            )
+                            logger.info("Message sent successfully as plain text")
+                            return True
+                        except Exception as fallback_error:
+                            logger.error(f"Failed to send even as plain text: {fallback_error}")
+                            if attempt < retry_count - 1:
+                                continue
+                    else:
+                        logger.error(f"Parse error even in plain text mode: {e}")
+                else:
+                    logger.error(f"Telegram error: {e}")
+                
+                if attempt >= retry_count - 1:
+                    return False
+                    
             except Exception as e:
                 logger.error(f"Unexpected error sending message: {e}")
                 return False
@@ -212,8 +241,8 @@ class TelegramBot:
                 
                 # Send confirmation message
                 await query.edit_message_text(
-                    text=f"{query.message.text}\n\n✅ *Tracking enabled for this token*",
-                    parse_mode="Markdown"
+                    text=f"{query.message.text}\n\n✅ <b>Tracking enabled for this token</b>",
+                    parse_mode="HTML"
                 )
                 
                 logger.info(f"Track button pressed for token: {token_ref}")

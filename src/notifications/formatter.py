@@ -88,9 +88,19 @@ class MessageFormatter:
             return cls._format_compact_alert(alert_data)
         return cls._format_detailed_alert(alert_data)
     
+    @staticmethod
+    def escape_html(text: str) -> str:
+        """Escape special HTML characters for Telegram HTML parse mode"""
+        text = str(text)
+        # Important: Escape & first to avoid double-escaping
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+        return text
+    
     @classmethod
     def _format_detailed_alert(cls, data: Dict[str, Any]) -> str:
-        """Format detailed alert message"""
+        """Format detailed alert message using HTML"""
         # Extract data with defaults
         token_symbol = data.get('token_symbol', 'UNKNOWN')
         token_address = data.get('token_address', '')
@@ -108,17 +118,21 @@ class MessageFormatter:
         category_emoji = cls.CATEGORY_EMOJIS.get(category, '🎯')
         risk_emoji = cls.RISK_EMOJIS.get(risk_level, '⚪️')
         
-        # Build message
+        # Escape any user-provided text (token symbols and addresses)
+        token_symbol_safe = cls.escape_html(token_symbol)
+        token_address_safe = cls.escape_html(token_address)
+        
+        # Build message using HTML formatting
         lines = []
         
         # Header
-        lines.append(f"🎯 SNIPER ALERT - Score: {score_combined}/100")
+        lines.append(f"🎯 <b>SNIPER ALERT</b> - Score: {score_combined}/100")
         lines.append(f"🤖 ML Confidence: {score_ml}%")
         lines.append("")
         
         # Token info
-        lines.append(f"🪙 Token: ${token_symbol}")
-        lines.append(f"📍 CA: {cls.truncate_address(token_address, 5, 3)}")
+        lines.append(f"🪙 Token: <b>${token_symbol_safe}</b>")
+        lines.append(f"📍 CA: <code>{cls.truncate_address(token_address_safe, 5, 3)}</code>")
         
         # Age
         age_seconds = metrics.get('age_seconds', 0)
@@ -127,7 +141,7 @@ class MessageFormatter:
         lines.append("")
         
         # Metrics
-        lines.append("📊 Métriques:")
+        lines.append("📊 <b>Métriques:</b>")
         liquidity = metrics.get('liquidity_usd', 0)
         holders = metrics.get('holders', 0)
         market_cap = metrics.get('market_cap', 0)
@@ -140,7 +154,7 @@ class MessageFormatter:
         lines.append("")
         
         # Security
-        lines.append("✅ Sécurité:")
+        lines.append("✅ <b>Sécurité:</b>")
         mint_auth = security.get('mint_authority', True)
         freeze_auth = security.get('freeze_authority', True)
         honeypot = security.get('honeypot', True)
@@ -160,7 +174,7 @@ class MessageFormatter:
         
         # ML Analysis
         if ml_predictions:
-            lines.append("🤖 ML ANALYSIS:")
+            lines.append("🤖 <b>ML ANALYSIS:</b>")
             pump_prob = ml_predictions.get('pump_probability', 0)
             estimated_gain = ml_predictions.get('estimated_gain_percent', 0)
             rug_risk = ml_predictions.get('rug_risk', 0)
@@ -177,11 +191,11 @@ class MessageFormatter:
         
         # Suggestion
         if suggestion:
-            lines.append("🎯 SUGGESTION:")
-            entry_timing = suggestion.get('entry_timing', 'N/A')
-            position_sol = suggestion.get('position_sol', 'N/A')
-            take_profit = suggestion.get('take_profit', 'N/A')
-            stop_loss = suggestion.get('stop_loss', 'N/A')
+            lines.append("🎯 <b>SUGGESTION:</b>")
+            entry_timing = cls.escape_html(suggestion.get('entry_timing', 'N/A'))
+            position_sol = cls.escape_html(suggestion.get('position_sol', 'N/A'))
+            take_profit = cls.escape_html(suggestion.get('take_profit', 'N/A'))
+            stop_loss = cls.escape_html(suggestion.get('stop_loss', 'N/A'))
             
             lines.append(f"Entry: {entry_timing}")
             lines.append(f"Position: {position_sol}")
@@ -197,7 +211,7 @@ class MessageFormatter:
     
     @classmethod
     def _format_compact_alert(cls, data: Dict[str, Any]) -> str:
-        """Format compact alert message"""
+        """Format compact alert message using HTML"""
         token_symbol = data.get('token_symbol', 'UNKNOWN')
         token_address = data.get('token_address', '')
         score_combined = data.get('score_combined', 0)
@@ -209,12 +223,16 @@ class MessageFormatter:
         category_emoji = cls.CATEGORY_EMOJIS.get(category, '🎯')
         risk_emoji = cls.RISK_EMOJIS.get(risk_level, '⚪️')
         
+        # Escape user-provided content
+        token_symbol_safe = cls.escape_html(token_symbol)
+        token_address_safe = cls.escape_html(token_address)
+        
         liquidity = cls.format_number(metrics.get('liquidity_usd', 0))
         holders = metrics.get('holders', 0)
         
         lines = [
-            f"{category_emoji} ${token_symbol} - Score: {score_combined}/100",
-            f"📍 {cls.truncate_address(token_address, 6, 4)}",
+            f"{category_emoji} <b>${token_symbol_safe}</b> - Score: {score_combined}/100",
+            f"📍 <code>{cls.truncate_address(token_address_safe, 6, 4)}</code>",
             f"💰 Liq: {liquidity} | 👥 {holders} holders",
             f"Risk: {risk_level} {risk_emoji}"
         ]
@@ -223,13 +241,13 @@ class MessageFormatter:
     
     @classmethod
     def format_test_message(cls) -> str:
-        """Generate a test message"""
+        """Generate a test message using HTML formatting"""
         return (
-            "🤖 *Test Message from Solana ML Scanner*\n"
+            "🤖 <b>Test Message from Solana ML Scanner</b>\n"
             "\n"
             "✅ Bot is connected and working!\n"
             "✅ Message formatting works\n"
             "✅ Ready to send alerts\n"
             "\n"
-            f"⏰ Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"⏰ Timestamp: <code>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</code>"
         )

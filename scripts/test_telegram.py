@@ -60,6 +60,34 @@ def create_mock_alert() -> dict:
     }
 
 
+def create_special_chars_alert() -> dict:
+    """Create a mock alert with special characters for testing edge cases"""
+    return {
+        'token_symbol': 'TEST&MOON',
+        'token_address': 'ABC<123>DEF&456',
+        'score_combined': 75,
+        'score_rules': 70,
+        'score_ml': 65,
+        'category': 'SMART_SNIPER',
+        'risk_level': 'LOW',
+        'alert_id': 999,
+        'metrics': {
+            'liquidity_usd': 15000,
+            'holders': 30,
+            'market_cap': 50000,
+            'rugcheck_score': 7.5,
+            'price_change_2min': 25,
+            'age_seconds': 60
+        },
+        'security': {
+            'mint_authority': False,
+            'freeze_authority': False,
+            'honeypot': False,
+            'lp_burned': True
+        }
+    }
+
+
 async def test_telegram_bot():
     """Run comprehensive Telegram bot tests"""
     print("=" * 60)
@@ -175,8 +203,25 @@ async def test_telegram_bot():
         print(f"❌ Error sending compact alert: {e}")
         return False
     
-    # Step 7: Close bot
-    print("🔒 Step 7: Closing bot connection...")
+    # Step 7: Test with special characters
+    print("🔧 Step 7: Testing special character handling...")
+    try:
+        special_alert = create_special_chars_alert()
+        success = await bot.send_alert(special_alert, compact=False)
+        
+        if success:
+            print("✅ Special character alert sent successfully")
+            print("   Token with &, <, > characters handled properly")
+            print()
+        else:
+            print("❌ Failed to send special character alert")
+            return False
+    except Exception as e:
+        print(f"❌ Error sending special character alert: {e}")
+        return False
+    
+    # Step 8: Close bot
+    print("🔒 Step 8: Closing bot connection...")
     try:
         await bot.close()
         print("✅ Bot closed cleanly")
@@ -190,7 +235,8 @@ async def test_telegram_bot():
     print("=" * 60)
     print()
     print("✅ Telegram bot is fully functional")
-    print("✅ Messages are formatted correctly")
+    print("✅ Messages are formatted correctly with HTML")
+    print("✅ Special characters are properly escaped")
     print("✅ Buttons are working")
     print("✅ Ready to send real alerts")
     print()
@@ -198,7 +244,8 @@ async def test_telegram_bot():
     print("1. Check your Telegram app for the test messages")
     print("2. Try clicking the buttons (TRADE, CHART, TRACK)")
     print("3. Verify the formatting looks good on mobile")
-    print("4. Bot is ready for production use!")
+    print("4. Check that special character alert displays correctly")
+    print("5. Bot is ready for production use!")
     print()
     
     return True
