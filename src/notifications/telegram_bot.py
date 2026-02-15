@@ -4,6 +4,7 @@ Handles bot initialization, message sending, and button interactions
 """
 
 import asyncio
+import re
 from typing import Dict, Any, Optional
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes
@@ -215,13 +216,14 @@ class TelegramBot:
         dexscreener_url = f"https://dexscreener.com/solana/{clean_address}"
         
         # Validate URLs before creating buttons
+        # If invalid, use homepage as safe fallback and log warning
         if not self._is_valid_url(jupiter_url):
-            logger.error(f"Invalid Jupiter URL: {jupiter_url}")
-            jupiter_url = "https://jup.ag"  # Fallback
+            logger.warning(f"Invalid Jupiter URL for token {clean_address}, using homepage fallback")
+            jupiter_url = "https://jup.ag"
         
         if not self._is_valid_url(dexscreener_url):
-            logger.error(f"Invalid DexScreener URL: {dexscreener_url}")
-            dexscreener_url = "https://dexscreener.com"  # Fallback
+            logger.warning(f"Invalid DexScreener URL for token {clean_address}, using homepage fallback")
+            dexscreener_url = "https://dexscreener.com"
         
         # Create button rows
         buttons = [
@@ -292,8 +294,6 @@ class TelegramBot:
         Returns:
             Cleaned token address
         """
-        import re
-        
         # Remove any whitespace
         address = address.strip()
         
@@ -322,8 +322,6 @@ class TelegramBot:
         Returns:
             True if valid, False otherwise
         """
-        import re
-        
         url_pattern = re.compile(
             r'^https?://'  # http:// or https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain

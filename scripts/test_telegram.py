@@ -207,8 +207,8 @@ async def test_telegram_bot():
     print("🔧 Step 7: Testing special character handling...")
     try:
         special_alert = create_special_chars_alert()
-        # Update with valid base58 address for testing
-        special_alert['token_address'] = 'Test1234567890ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijk'
+        # Update with valid base58 Solana address for testing (all valid base58 chars)
+        special_alert['token_address'] = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
         
         result = await bot.send_alert(special_alert, compact=False)
         

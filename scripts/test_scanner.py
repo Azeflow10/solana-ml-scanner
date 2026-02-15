@@ -41,7 +41,7 @@ async def main():
     liquidity = LiquidityAnalyzer(config)
     holder = HolderAnalyzer(config)
     scoring = ScoringEngine(config)
-    pattern = PatternDetector()  # Doesn't take config
+    pattern = PatternDetector()  # Note: PatternDetector uses no config by design
     
     print("✅ Components initialized")
     print()
