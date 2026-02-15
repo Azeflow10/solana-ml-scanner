@@ -33,7 +33,7 @@ This directory contains pre-trained machine learning models for token analysis.
 ### Download Models
 
 ```bash
-py scripts/download_pretrained_models.py
+python scripts/download_pretrained_models.py
 ```
 
 ### Manual Installation
@@ -69,7 +69,7 @@ New model versions are released monthly. To update:
 mv models models.backup
 
 # Download latest
-py scripts/download_pretrained_models.py
+python scripts/download_pretrained_models.py
 ```
 
 ## Performance

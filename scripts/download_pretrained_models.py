@@ -39,7 +39,7 @@ def download_file(url: str, destination: Path) -> bool:
     """Download a file from URL to destination"""
     try:
         print(f"📥 Downloading {destination.name}...")
-        response = requests.get(url, stream=True, timeout=30)
+        response = requests.get(url, stream=True, timeout=120)
         response.raise_for_status()
         
         total_size = int(response.headers.get('content-length', 0))
@@ -172,7 +172,7 @@ def main():
     if success_count == len(MODELS):
         print("\n🎉 All models installed successfully!")
         print("\n📝 Next steps:")
-        print("   1. Restart the bot: py main.py")
+        print("   1. Restart the bot: python main.py")
         print("   2. The bot will now use ML-enhanced predictions")
         print("   3. Accuracy improved: 60% → 85%+")
         print("\n💡 The models are mock versions for development.")
