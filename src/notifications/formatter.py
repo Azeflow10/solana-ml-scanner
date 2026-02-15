@@ -92,6 +92,7 @@ class MessageFormatter:
     def escape_html(text: str) -> str:
         """Escape special HTML characters for Telegram HTML parse mode"""
         text = str(text)
+        # Important: Escape & first to avoid double-escaping
         text = text.replace('&', '&amp;')
         text = text.replace('<', '&lt;')
         text = text.replace('>', '&gt;')

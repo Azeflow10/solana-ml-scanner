@@ -41,7 +41,7 @@ def test_escape_html():
     """Test HTML character escaping"""
     assert MessageFormatter.escape_html("normal text") == "normal text"
     assert MessageFormatter.escape_html("text<script>") == "text&lt;script&gt;"
-    assert MessageFormatter.escape_html("text&amp;") == "text&amp;amp;"
+    assert MessageFormatter.escape_html("text&more") == "text&amp;more"
     assert MessageFormatter.escape_html("<>&") == "&lt;&gt;&amp;"
     assert MessageFormatter.escape_html("5 > 3 & 2 < 4") == "5 &gt; 3 &amp; 2 &lt; 4"
 
@@ -112,8 +112,8 @@ def test_format_telegram_alert_with_special_chars():
     
     # Check that special characters are escaped in token symbol
     assert "TEST&lt;&gt;&amp;" in message
-    # Address is truncated, so check for escaped characters in truncated version
-    assert "ABC&l...DEF" in message or "&lt;" in message
+    # Address is truncated (5 chars start, 3 chars end), so check for truncated escaped version
+    assert "ABC&l...DEF" in message
     # Should not contain unescaped special chars in dynamic content
     assert "<b>$TEST<>&</b>" not in message
 
